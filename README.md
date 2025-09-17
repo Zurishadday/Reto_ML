@@ -12,7 +12,7 @@
 	pip install -r requirements.txt
 
 * train:
-	python -m src.train --data data/retention.csv --target usuarioPerdido
+	python -m src.train --data data/retencion.csv --target usuarioPerdido
 
 * evaluate:
 	python -m src.train --data data/retention.csv --target usuarioPerdido
