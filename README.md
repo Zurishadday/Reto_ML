@@ -27,8 +27,8 @@
 	python -m src.eval_champion
 
 * infer:
-	python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-14
-	python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
+	python -m src.predict --data data/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-14
+	python -m src.predict --data data/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
 
 * Create refence for monitor (Once time):
   	python -m src.build_reference
