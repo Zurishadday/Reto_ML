@@ -11,14 +11,27 @@
 	python -m pip install --upgrade pip
 	pip install -r requirements.txt
 
+* Set up:
+  	python -m src.config.py
+
 * train:
-	python -m src.train --data data/retencion.csv --target usuarioPerdido
+	python -m src.train_multi.py --data data/retencion.csv --target usuarioPerdido
+
+* eda (comparar train vs test y su drift con KS/CHI2):
+  	python -m src.eda --data data/retencion.csv --target usuarioPerdido
+
+* select champion
+  	python -m src.select_champion
 
 * evaluate:
-	python -m src.train --data data/retention.csv --target usuarioPerdido
+	python -m src.eval_champion
 
 * infer:
-	python -m src.infer --model artifacts/gbt__v0.1.pkl --input data/new_batch.csv
+	python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-14
+	python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
+
+* Create refence for monitor (Once time):
+  	python -m src.build_reference
 
 * monitor:
 	python -m src.monitor --reference data/train_with_score.csv --current data/new_batch_with_score.csv --score_col score
@@ -112,7 +125,7 @@ Selección de campeón:
 
 make infer
 
-python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
+python -m src.predict --data data/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
 
 
 
