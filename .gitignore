@@ -1,0 +1,13 @@
+pycache/
+.py[cod]
+.pyo
+.ipynb_checkpoints/
+.env
+.venv
+data/
+!data/
+artifacts/
+!artifacts/.gitkeep
+logs/
+monitoring/*
+!monitoring/.gitkeep
