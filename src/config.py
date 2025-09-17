@@ -17,9 +17,7 @@ DATA_SCHEMA_VERSION = "1.0.0"
 
 # columnas a excluir del modelado
 DROP_COLS = [
-    "CustomerID",  # IDs
-    # agrega aquí otras que detectes como fuga:
-    # "flagCancelado", "fechaBaja", "diasHastaBaja", ...
+    "CustomerID"
 ]
 
 # Asegurar carpetas

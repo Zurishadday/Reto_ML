@@ -1,185 +1,150 @@
-===== README.md =====
-# Reto MLOps de Retención — README (entrega)
+# Reto MLOps de Retención — README
 
-> **Objetivo**: dejar un repositorio ejecutable, reproducible y auditable que cumpla con el reto: (1) entrenar **múltiples modelos**, (2) **registrar predicciones** de forma estructurada, (3) levantar un **canal de monitoreo** (drift/calidad) y (4) proponer una **arquitectura de versionado y CI/CD**.
-
----
-
-## 📦 Estructura del repo
-mlops-retencion/
-├─ data/
-│ └─ raw/retencion.csv # dataset fuente
-├─ artifacts/ # modelos, metadata y experimentos
-├─ logs/ # registros de predicciones por lote/fecha
-├─ monitoring/ # EDA, reportes de drift, métricas diarias
-├─ notebooks/ # (opcional) exploración manual
-├─ src/
-│ ├─ init.py
-│ ├─ config.py
-│ ├─ data.py
-│ ├─ features.py
-│ ├─ eda.py
-│ ├─ train.py # baseline
-│ ├─ models.py # definiciones: logreg/xgb/mlp
-│ ├─ metrics.py # umbral & métricas
-│ ├─ train_multi.py # 3 modelos + logging estructurado
-│ ├─ select_champion.py # seleccionar campeón por métrica
-│ ├─ eval_champion.py # curvas, matriz confusión, p@k
-│ ├─ predict.py # "producción" (genera logs por fecha)
-│ ├─ build_reference.py # referencia de scores
-│ └─ monitor.py # monitor diario + alertas
-└─ requirements.txt
-
-
-> **Nota**: Python 3.11 recomendado. Entorno sugerido: `conda create -n mlops-retencion python=3.11 -y`.
+> Objetivo: dejar un repositorio **ejecutable, reproducible y auditable** que cumpla con el reto:
+> 1) entrenar **múltiples modelos**, 2) **registrar predicciones** de forma estructurada,
+> 3) levantar un **canal de monitoreo** (drift/calidad) y 4) proponer una **arquitectura** con versionado y CI/CD.
 
 ---
 
-## ⚙️ Instalación rápida
-```bash
+## Tabla de contenido
+- [Estructura](#estructura)
+- [Requisitos e instalación](#requisitos-e-instalación)
+- [Datos y supuestos](#datos-y-supuestos)
+- [Guía rápida (Makefile)](#guía-rápida-makefile)
+- [Entrenamiento y evaluación](#entrenamiento-y-evaluación)
+- [Inferencia y logging](#inferencia-y-logging)
+- [Monitoreo y umbrales](#monitoreo-y-umbrales)
+- [Métricas de negocio y umbral de decisión](#métricas-de-negocio-y-umbral-de-decisión)
+- [Arquitectura propuesta](#arquitectura-propuesta)
+- [Entregables exigidos](#entregables-exigidos)
+
+---
+
+---
+## Estructura
+## Requisitos e instalación
+
+conda create -n mlops-retencion python=3.11 -y
 conda activate mlops-retencion
 pip install -r requirements.txt
 
-🧠 Supuestos de datos
 
-Target (binario): usuarioPerdido (1 = se perdió, 0 = retenido).
+## Datos y supuestos
 
-IDs (no usar como features): CustomerID → se excluye en config.DROP_COLS.
+* Target binario: usuarioPerdido (1 = perdido, 0 = retenido).
 
-features.py detecta tipos automáticamente (numéricas vs categóricas) e imputa nulos (median/most_frequent). Categóricas → OneHotEncoder(handle_unknown="ignore")
+* IDs (no usar como features): ej. CustomerID → excluir en config.py (DROP_COLS).
 
-▶️ Guía de ejecución (de cero a resultados)
+* features.py detecta tipos (numéricas/categóricas), imputa nulos (mediana / más frecuente) y aplica OneHotEncoder(handle_unknown="ignore").
 
-1) Baseline
-
-python -m src.train --data data/raw/retencion.csv --target usuarioPerdido
-
-Resultado: artifacts/baseline_logreg_*.joblib + artifacts/metadata.json.
-
-2) EDA + Fuga + Drift (train vs test)
-
-python -m src.eda --data data/raw/retencion.csv --target usuarioPerdido
-
-Salida clave:
-
-monitoring/eda_overview.json (nulos, dtypes, balance, duplicados)
-
-monitoring/eda/*.png (histos/barras)
-
-monitoring/leakage_suspects.csv (posibles fugas por MI)
-
-monitoring/drift_report_train_vs_test.csv (KS/Chi²)
-
-3) Tres modelos + umbral + logging de TEST
-
-python -m src.train_multi --data data/raw/retencion.csv --target usuarioPerdido
-
-Salida:
-
-artifacts/experiments.csv (historial de corridas)
-
-{modelo}_{version}_{timestamp}.joblib/.json (artefactos)
-
-logs/preds_{modelo}_{version}_{timestamp}_TEST.csv (preds por fila)
-
-4) Elegir campeón y evaluarlo
-
-python -m src.select_champion
-python -m src.eval_champion
+* Clase positiva esperada ~26% (ejemplo del reto). Ajustar umbral según capacidad operativa.
 
 
-Salida:
+## Guía rápida (Makefile)
 
-artifacts/champion_model.joblib, champion_meta.json, champion_info.json
+make setup        # instala dependencias
+make train        # entrena 3 modelos (logreg, xgb, mlp) y guarda artefactos
+make evaluate     # re-ejecuta entrenamiento y exporta reportes de test
+make infer        # genera logs de predicciones (CSV) con el modelo campeón
+make monitor      # calcula PSI/KS y emite alertas de drift
 
-monitoring/eval_{token}.json, *_pr_curve.png, *_roc_curve.png
 
-Precision@K (5%, 10%, 20%) para decisiones operativas.
+Archivos generados clave
 
-5) “Producción” (simulada) + Monitoreo
+* artifacts/experiments_summary.json — historial de corridas/validación
 
-Generar lotes diarios (logs) usando el campeón:
+* artifacts/best_test_report.json — métricas del mejor modelo en test
 
-python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-14
+* artifacts/<modelo>__vX.Y.pkl — artefacto serializado
+
+* artifacts/<modelo>__calibration.csv — puntos para curva de calibración
+
+* logs/predictions.csv — ≥ 100 eventos para cumplir el reto
+
+* monitoring/drift_report.json — reporte de drift (PSI/KS + alertas)
+
+* monitoring/train_with_score.csv — baseline de score para drift
+
+
+
+Entrenamiento y evaluación
+
+* Entrenamos tres familias de modelos:
+
+* Logistic Regression (lineal)
+
+* XGBoost (árboles impulsados)
+
+* MLP (red neuronal simple)
+
+## Métricas de evaluación (valid/test):
+
+* ROC-AUC, PR-AUC, F1, Precision@K, Lift@K, Curva de calibración.
+
+Selección de campeón:
+
+* Se elige por mejor ROC-AUC en validación (desempate por PR-AUC/F1).
+
+* Se guarda reporte de test del campeón y sus artefactos/versiones.
+
+
+## Inferencia y logging
+
+make infer
+
 python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
 
-Crear referencia de scores (una vez):
 
-python -m src.build_reference
+## Arquitectura propuesta
 
-Correr el monitor:
-
-python -m src.monitor
-
-Salida:
-
-* monitoring/daily_metrics.csv (fecha, n, pos_rate_pred, ks_p_score, AUC/PR/F1 si hay y_true)
-
-* monitoring/alerts.json (reglas & alertas).
-
-🧪 Métricas clave y selección de umbral
-
-Entrenamos con probabilidades y elegimos el umbral que maximiza F1 en VALIDATION. Ese umbral se guarda junto al modelo.
-
-Comparativa de modelos por PR-AUC(test) (prioriza positivos raros) y desempate por F1(test).
-
-Precision@K conecta el modelo con la capacidad operativa (si solo contactas al top 10–20%).
-
-🧾 Esquemas de archivos (contratos)
-artifacts/experiments.csv
-
-experiment_id, trained_at_utc, model_token, model_name, model_version,
-threshold, roc_auc_val, pr_auc_val, f1_val, roc_auc_test, pr_auc_test, f1_test,
-n_train, n_val, n_test
+flowchart LR
+    A[Repo (git)] --> B[CI: tests + train (muestra)]
+    B --> C[Artifacts: .pkl + reports]
+    C --> D[Despliegue API /predict (Cloud Run/EC2)]
+    D --> E[Logs de predicción (CSV/SQLite)]
+    E --> F[Monitor batch (PSI/KS + score)]
+    F -->|reglas| G[Alertas: email/Slack/Teams]
+    A --> H[Versionado de datos (manifest/DVC)]
+    C --> I[Registry de modelos (semver/MLflow)]
 
 
-🔎 Monitoreo (reglas por defecto)
+## Entregables exigidos
 
-* Drift de scores: KS vs referencia (p < 0.01 ⇒ alerta DRIFT_SCORES).
+* Repo con src/, notebooks/, logs/, artifacts/, monitoring/
 
-* Tasa de positivos predicha: rango sano [0.05, 0.60] (configurable) ⇒ POS_RATE_OUT_OF_RANGE.
+* README con comandos: make setup/train/evaluate/infer/monitor
 
-* Si llega y_true en los logs, calculamos ROC-AUC/PR-AUC/F1 diarios.
+* Múltiples modelos entrenados + log de experimentos
 
-Extensión rápida: agregar un subset de features a los logs y reutilizar KS/Chi² de src.eda para monitorear inputs.
+* Logs locales de predicción (≥ 100 eventos)
 
-🧰 Configuración relevante (src/config.py)
+* Reporte de monitoreo con drift + umbrales
 
-* RANDOM_STATE, MODEL_VERSION, DATA_SCHEMA_VERSION.
-
-* DROP_COLS para excluir IDs y posibles fugas (e.g., CustomerID, fechaBaja, flagCancelado).
-
-🧱 CI/CD propuesto (GCP)
-Flujo (alto nivel)
-
-flowchart TD
-  A[Dev push a main] --> B[GitHub Actions: CI]
-  B -->|build & test| C[Construir imagen Docker]
-  C --> D[Artifact Registry]
-  D --> E[Cloud Run Job: predict diario]
-  D --> F[Cloud Run Job: monitor diario]
-  E -->|logs CSV| G[(Cloud Storage / BigQuery)]
-  F -->|daily_metrics & alerts| G
-  F --> H[Notificación (Email/Slack/Teams)]
+* Diagrama de arquitectura y propuesta de CI/CD/versionado
 
 
-📚 Comandos de referencia
-
-# 1) Baseline
-python -m src.train --data data/retencion.csv --target usuarioPerdido
-
-# 2) EDA + drift
-python -m src.eda --data data/retencion.csv --target usuarioPerdido
-
-# 3) Tres modelos + logging TEST
-python -m src.train_multi --data data/retencion.csv --target usuarioPerdido
-
-# 4) Campeón + evaluación
-python -m src.select_champion
-python -m src.eval_champion
-
-# 5) Producción simulada + referencia + monitoreo
-python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-14
-python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
-python -m src.build_reference
-python -m src.monitor
+## Estructura
+```txt
+mlops-retencion/
+├─ data/
+│  └─ raw/retencion.csv         # dataset fuente (binario, target: usuarioPerdido)
+├─ artifacts/                   # modelos, reportes, metadata
+├─ logs/                        # registros de predicciones (CSV/fecha)
+├─ monitoring/                  # EDA, drift, métricas, alertas
+├─ notebooks/                   # opcional: exploración manual
+├─ src/
+│  ├─ __init__.py
+│  ├─ config.py                 # seeds, columnas a descartar, versiones
+│  ├─ data.py                   # carga y validaciones básicas
+│  ├─ features.py               # imputación y OHE; numéricas/categóricas
+│  ├─ eda.py                    # nulos, dtypes, balance, fuga, drift inicial
+│  ├─ models.py                 # definiciones: logreg / xgb / mlp
+│  ├─ metrics.py                # métricas y búsqueda de umbral
+│  ├─ train.py                  # baseline
+│  ├─ train_multi.py            # 3 modelos + logging de experimentos
+│  ├─ select_champion.py        # elige campeón por métrica
+│  ├─ eval_champion.py          # curvas ROC/PR, matriz, Precision@K/Lift
+│  ├─ predict.py                # “producción” simulada (genera logs)
+│  ├─ build_reference.py        # referencia de scores para drift
+│  └─ monitor.py                # monitoreo batch + alertas (PSI/KS)
+└─ requirements.txt
