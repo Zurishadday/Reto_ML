@@ -34,8 +34,7 @@
   	python -m src.build_reference
 
 * monitor:
-	python -m src.monitor --reference data/train_with_score.csv --current data/new_batch_with_score.csv --score_col score
-
+	python -m src.monitor
 
 ---
 
