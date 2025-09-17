@@ -4,6 +4,26 @@
 > 1) entrenar **múltiples modelos**, 2) **registrar predicciones** de forma estructurada,
 > 3) levantar un **canal de monitoreo** (drift/calidad) y 4) proponer una **arquitectura** con versionado y CI/CD.
 
+
+## Orden de Ejecución
+
+* setup:
+	python -m pip install --upgrade pip
+	pip install -r requirements.txt
+
+* train:
+	python -m src.train --data data/retention.csv --target usuarioPerdido
+
+* evaluate:
+	python -m src.train --data data/retention.csv --target usuarioPerdido
+
+* infer:
+	python -m src.infer --model artifacts/gbt__v0.1.pkl --input data/new_batch.csv
+
+* monitor:
+	python -m src.monitor --reference data/train_with_score.csv --current data/new_batch_with_score.csv --score_col score
+
+
 ---
 
 ## Tabla de contenido
