@@ -95,18 +95,6 @@ make infer
 python -m src.predict --data data/raw/retencion.csv --target usuarioPerdido --sample 0.2 --date 2025-09-15
 
 
-## Arquitectura propuesta
-
-flowchart LR
-    A[Repo (git)] --> B[CI: tests + train (muestra)]
-    B --> C[Artifacts: .pkl + reports]
-    C --> D[Despliegue API /predict (Cloud Run/EC2)]
-    D --> E[Logs de predicción (CSV/SQLite)]
-    E --> F[Monitor batch (PSI/KS + score)]
-    F -->|reglas| G[Alertas: email/Slack/Teams]
-    A --> H[Versionado de datos (manifest/DVC)]
-    C --> I[Registry de modelos (semver/MLflow)]
-
 
 ## Entregables exigidos
 
